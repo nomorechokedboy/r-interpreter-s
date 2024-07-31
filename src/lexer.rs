@@ -24,6 +24,8 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Result<Token> {
+        self.skip_whitespace();
+
         let token = match self.ch {
             b'{' => Token::Lbrace,
             b'}' => Token::Rbrace,
@@ -55,7 +57,7 @@ impl Lexer {
                     Token::Assign
                 // }
             },
-            /* b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                 let ident = self.read_ident();
                 return Ok(match ident.as_str() {
                     "fn" => Token::Function,
@@ -68,7 +70,7 @@ impl Lexer {
                     _ => Token::Ident(ident),
                 });
             },
-            b'0'..=b'9' => return Ok(Token::Int(self.read_int())), */
+            b'0'..=b'9' => return Ok(Token::Int(self.read_int())),
             0 => Token::Eof,
             _ => unreachable!("no monkey program should contain these characters and you should feel bad about yourself")
         };
@@ -86,6 +88,34 @@ impl Lexer {
 
         self.position = self.read_position;
         self.read_position += 1;
+    }
+
+    fn is_letter(&self, ch: u8) -> bool {
+        ch.is_ascii_alphabetic() || ch == b'_'
+    }
+
+    fn read_ident(&mut self) -> String {
+        let pos = self.position;
+        while self.is_letter(self.ch) {
+            self.read_char();
+        }
+
+        String::from_utf8_lossy(&self.input[pos..self.position]).to_string()
+    }
+
+    fn skip_whitespace(&mut self) {
+        while self.ch.is_ascii_whitespace() {
+            self.read_char();
+        }
+    }
+
+    fn read_int(&mut self) -> String {
+        let pos = self.position;
+        while self.ch.is_ascii_digit() {
+            self.read_char();
+        }
+
+        String::from_utf8_lossy(&self.input[pos..self.position]).to_string()
     }
 }
 
