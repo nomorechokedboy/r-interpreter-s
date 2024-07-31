@@ -17,6 +17,8 @@ pub enum Token {
 
     LessThan,
     GreaterThan,
+    Equal,
+    NotEqual,
 
     Comma,
     Semicolon,
@@ -48,8 +50,8 @@ impl Display for Token {
             Token::Asterisk => write!(f, "Asterisk"),
             Token::Minus => write!(f, "Minus"),
             Token::Slash => write!(f, "Slash"),
-            /* Token::Equal => write!(f, "Equal"),
-            Token::NotEqual => write!(f, "NotEqual"), */
+            Token::Equal => write!(f, "Equal"),
+            Token::NotEqual => write!(f, "NotEqual"),
             Token::LessThan => write!(f, "LessThan"),
             Token::GreaterThan => write!(f, "GreaterThan"),
             Token::Plus => write!(f, "Plus"),

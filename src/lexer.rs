@@ -39,23 +39,23 @@ impl Lexer {
             b'-' => Token::Minus,
             b'/' => Token::Slash,
             b'!' => {
-                /* if self.peek() == b'=' {
+                if self.peek() == b'=' {
                     self.read_char();
                     Token::NotEqual
-                } else { */
-                Token::Bang
-                // }
+                } else {
+                    Token::Bang
+                }
             }
             b'>' => Token::GreaterThan,
             b'<' => Token::LessThan,
             b'*' => Token::Asterisk,
             b'=' => {
-                /* if self.peek() == b'=' {
+                if self.peek() == b'=' {
                     self.read_char();
                     Token::Equal
-                } else { */
-                Token::Assign
-                // }
+                } else {
+                    Token::Assign
+                }
             }
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                 let ident = self.read_ident();
@@ -117,6 +117,14 @@ impl Lexer {
 
         String::from_utf8_lossy(&self.input[pos..self.position]).to_string()
     }
+
+    fn peek(&self) -> u8 {
+        if self.read_position >= self.input.len() {
+            return 0;
+        }
+
+        self.input[self.read_position]
+    }
 }
 
 #[cfg(test)]
@@ -152,9 +160,6 @@ mod test {
 
     #[test]
     fn get_next_complete() -> Result<()> {
-        //
-        // 10 == 10;
-        // 10 != 9;
         let input = r#"let five = 5;
             let ten = 10;
             let add = fn(x, y) {
@@ -168,6 +173,9 @@ mod test {
             } else {
                 return false;
             }
+
+            10 == 10;
+            10 != 9;
         "#;
 
         let mut lex = Lexer::new(input.into());
@@ -238,14 +246,14 @@ mod test {
             Token::False,
             Token::Semicolon,
             Token::Rbrace,
-            // Token::Int(String::from("10")),
-            // Token::Equal,
-            // Token::Int(String::from("10")),
-            // Token::Semicolon,
-            // Token::Int(String::from("10")),
-            // Token::NotEqual,
-            // Token::Int(String::from("9")),
-            // Token::Semicolon,
+            Token::Int(String::from("10")),
+            Token::Equal,
+            Token::Int(String::from("10")),
+            Token::Semicolon,
+            Token::Int(String::from("10")),
+            Token::NotEqual,
+            Token::Int(String::from("9")),
+            Token::Semicolon,
             Token::Eof,
         ];
 
