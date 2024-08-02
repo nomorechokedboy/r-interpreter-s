@@ -1,5 +1,3 @@
-use anyhow::{bail, Result};
-
 use crate::token::Token;
 
 #[derive(Debug)]
@@ -23,7 +21,7 @@ impl Lexer {
         l
     }
 
-    pub fn next_token(&mut self) -> Result<Token> {
+    pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
         let token = match self.ch {
@@ -59,7 +57,7 @@ impl Lexer {
             }
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                 let ident = self.read_ident();
-                return Ok(match ident.as_str() {
+                return match ident.as_str() {
                     "fn" => Token::Function,
                     "let" => Token::Let,
                     "if" => Token::If,
@@ -68,15 +66,15 @@ impl Lexer {
                     "return" => Token::Return,
                     "else" => Token::Else,
                     _ => Token::Ident(ident),
-                });
+                };
             }
-            b'0'..=b'9' => return Ok(Token::Int(self.read_int())),
+            b'0'..=b'9' => return Token::Int(self.read_int()),
             0 => Token::Eof,
             _ => Token::Illegal,
         };
 
         self.read_char();
-        Ok(token)
+        token
     }
 
     fn read_char(&mut self) {
@@ -150,7 +148,7 @@ mod test {
         ];
 
         for token in tokens {
-            let next_token = lexer.next_token()?;
+            let next_token = lexer.next_token();
             println!("expected: {:?}, received {:?}", token, next_token);
             assert_eq!(token, next_token);
         }
@@ -258,7 +256,7 @@ mod test {
         ];
 
         for token in tokens {
-            let next_token = lex.next_token()?;
+            let next_token = lex.next_token();
             println!("expected: {:?}, received {:?}", token, next_token);
             assert_eq!(token, next_token);
         }
