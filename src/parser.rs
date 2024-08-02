@@ -2,15 +2,15 @@ use crate::{
     ast::{
         base::{Expression, Statement},
         program::Program,
-        statements::{Identifier, LetStatement, ReturnStatement},
+        statements::{ExpressionStatement, Identifier, LetStatement, ReturnStatement},
     },
     lexer::Lexer,
     token::Token,
 };
-use std::{collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
-type PrefixParseFn = Rc<dyn Fn() -> Expression>;
-type InfixParseFn = Rc<dyn Fn(Expression) -> Expression>;
+type PrefixParseFn = for<'a> fn(&'a mut Parser) -> Expression;
+type InfixParseFn = for<'a> fn(&'a mut Parser, Expression) -> Expression;
 
 pub struct Parser {
     cur_token: Token,
@@ -19,6 +19,17 @@ pub struct Parser {
     peek_token: Token,
     prefix_parse_fns: HashMap<Token, PrefixParseFn>,
     infix_parse_fns: HashMap<Token, InfixParseFn>,
+}
+
+#[derive(Debug)]
+enum Precedence {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
 }
 
 impl Parser {
@@ -33,6 +44,7 @@ impl Parser {
         };
         parser.next_token();
         parser.next_token();
+        parser.register_prefix(Token::Ident(String::new()), Parser::parse_identifier);
 
         parser
     }
@@ -65,7 +77,7 @@ impl Parser {
         match self.cur_token {
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
-            _ => None,
+            _ => self.parse_expression_statement(),
         }
     }
 
@@ -106,6 +118,31 @@ impl Parser {
         Some(Statement::Return(ReturnStatement::new(token, None)))
     }
 
+    fn parse_expression_statement(&mut self) -> Option<Statement> {
+        let (token, expression) = (
+            self.cur_token.clone(),
+            self.parse_expression(Precedence::Lowest)?,
+        );
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Expression(ExpressionStatement {
+            token,
+            expression,
+        }))
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
+        let prefix = self.prefix_parse_fns.get(&Token::Ident(String::new()))?;
+        Some(prefix(self))
+    }
+
+    fn parse_identifier(&mut self) -> Expression {
+        Expression::Identifier(Identifier::new(self.cur_token.clone()))
+    }
+
     fn cur_token_is(&self, t: &Token) -> bool {
         std::mem::discriminant(&self.cur_token) == std::mem::discriminant(t)
     }
@@ -132,12 +169,12 @@ impl Parser {
         self.errs.push(msg);
     }
 
-    fn register_prefix(&mut self, t: &Token, func: PrefixParseFn) {
-        self.prefix_parse_fns.insert(t.clone(), func);
+    fn register_prefix(&mut self, t: Token, func: PrefixParseFn) {
+        self.prefix_parse_fns.insert(t, func);
     }
 
-    fn register_infix(&mut self, t: &Token, func: InfixParseFn) {
-        self.infix_parse_fns.insert(t.clone(), func);
+    fn register_infix(&mut self, t: Token, func: InfixParseFn) {
+        self.infix_parse_fns.insert(t, func);
     }
 }
 
@@ -238,6 +275,34 @@ mod test {
                 }
                 _ => eprintln!("stmt is not ReturnStatement. Got: {}", stmt.token_literal()),
             }
+        }
+    }
+
+    #[test]
+    fn test_identifier_expression() {
+        let input = "foobar";
+        let l = Lexer::new(input.to_string());
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errs(&p);
+
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "program.statements does not contain 1 statements. got={}",
+            program.statements.len()
+        );
+
+        let stmt = &program.statements[0];
+        match stmt {
+            Statement::Expression(exp_stmt) => {
+                assert_eq!(exp_stmt.expression.to_string(), "foobar");
+                assert_eq!(exp_stmt.token_literal(), "foobar");
+            }
+            _ => eprintln!(
+                "program.Statements[0] is not ast.ExpressionStatement. got={}",
+                stmt.token_literal()
+            ),
         }
     }
 
