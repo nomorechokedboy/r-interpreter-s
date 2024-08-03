@@ -3,7 +3,8 @@ use crate::{
         base::{Expression, Statement},
         program::Program,
         statements::{
-            ExpressionStatement, Identifier, IntegerLiteral, LetStatement, ReturnStatement,
+            ExpressionStatement, Identifier, IntegerLiteral, LetStatement, PrefixExpression,
+            ReturnStatement,
         },
     },
     lexer::Lexer,
@@ -46,8 +47,11 @@ impl Parser {
         };
         parser.next_token();
         parser.next_token();
+
         parser.register_prefix(Token::Ident(String::new()), Parser::parse_identifier);
         parser.register_prefix(Token::Int(String::new()), Parser::parse_integer_literal);
+        parser.register_prefix(Token::Bang, Parser::parse_prefix_expression);
+        parser.register_prefix(Token::Minus, Parser::parse_prefix_expression);
 
         parser
     }
@@ -138,15 +142,23 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let prefix_parse = self.prefix_parse_fns.iter().find_map(|(key, value)| {
-            if self.cur_token_is(key) {
+        let token = self.cur_token.clone();
+
+        let prefix_parse = self.prefix_parse_fns.iter().find_map(|(key, &value)| {
+            if std::mem::discriminant(key) == std::mem::discriminant(&token) {
                 Some(value)
             } else {
                 None
             }
-        })?;
+        });
 
-        prefix_parse(self)
+        match prefix_parse {
+            Some(parse_fn) => parse_fn(self),
+            None => {
+                self.no_prefix_parse_fn_err(&token);
+                None
+            }
+        }
     }
 
     fn parse_identifier(&mut self) -> Option<Expression> {
@@ -166,6 +178,17 @@ impl Parser {
             }
             _ => None,
         }
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<Expression> {
+        let (token, operator) = (self.cur_token.clone(), self.cur_token.to_string());
+        self.next_token();
+
+        Some(Expression::PrefixExpression(PrefixExpression::new(
+            token,
+            operator,
+            Box::new(self.parse_expression(Precedence::Prefix)?),
+        )))
     }
 
     fn cur_token_is(&self, t: &Token) -> bool {
@@ -201,10 +224,17 @@ impl Parser {
     fn register_infix(&mut self, t: Token, func: InfixParseFn) {
         self.infix_parse_fns.insert(t, func);
     }
+
+    fn no_prefix_parse_fn_err(&mut self, t: &Token) {
+        self.errs
+            .push(format!("no prefix parse function for {} found", t))
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use std::ops::Deref;
+
     use super::*;
     use crate::ast::base::Node;
 
@@ -239,33 +269,28 @@ mod test {
 
     fn test_let_statement(s: &Statement, name: &str) -> bool {
         if s.token_literal() != "let" {
-            eprintln!("s.token_literal not 'let'. got={}", s.token_literal());
+            eprintln!("s.token_literal not 'let'. got={s:#?}");
             return false;
         }
 
         let let_stmt = match s {
             Statement::Let(stmt) => stmt,
             _ => {
-                println!("s not etStatement");
+                println!("s not LetStatement");
                 return false;
             }
         };
 
         if let_stmt.name.value() != name {
             println!(
-                "let_stmt.name.val not '{}'. got={}",
-                name,
+                "let_stmt.name.val not '{name}'. got={}",
                 let_stmt.name.value()
             );
             return false;
         }
 
         if let_stmt.name.token_literal() != name {
-            println!(
-                "s.name not '{}'. got={}",
-                name,
-                let_stmt.name.token_literal()
-            );
+            println!("s.name not '{name}'. got={}", let_stmt.name.token_literal());
             return false;
         }
 
@@ -295,10 +320,10 @@ mod test {
             match stmt {
                 Statement::Return(s) => {
                     if s.token_literal() != "return" {
-                        eprintln!("s.token_literal not 'return'. got={}", s.token_literal());
+                        eprintln!("s.token_literal not 'return'. got={s:#?}");
                     }
                 }
-                _ => eprintln!("stmt is not ReturnStatement. Got: {}", stmt.token_literal()),
+                _ => panic!("stmt is not ReturnStatement. Got: {stmt:#?}"),
             }
         }
     }
@@ -324,10 +349,7 @@ mod test {
                 assert_eq!(exp_stmt.expression.to_string(), "foobar");
                 assert_eq!(exp_stmt.token_literal(), "foobar");
             }
-            _ => eprintln!(
-                "program.Statements[0] is not ast.ExpressionStatement. got={}",
-                stmt.token_literal()
-            ),
+            _ => eprintln!("program.Statements[0] is not ast.ExpressionStatement. got={stmt:#?}",),
         }
     }
 
@@ -345,6 +367,7 @@ mod test {
             "program.statements does not contain 1 statements. got={}",
             program.statements.len()
         );
+
         let stmt = &program.statements[0];
         match stmt {
             Statement::Expression(exp_stmt) => match &exp_stmt.expression {
@@ -354,10 +377,77 @@ mod test {
                 }
                 _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
             },
-            _ => panic!(
-                "program.statements[0] is not an ExpressionStatement. got={}",
-                stmt.token_literal()
-            ),
+            _ => panic!("program.statements[0] is not an ExpressionStatement. got={stmt:#?}",),
+        }
+    }
+
+    #[derive(Debug)]
+    struct PrefixTest {
+        input: String,
+        operator: String,
+        int_val: i64,
+    }
+
+    #[test]
+    fn test_parsing_prefix_expressions() {
+        let prefix_tests = vec![
+            PrefixTest {
+                input: "!5".to_string(),
+                operator: "!".to_string(),
+                int_val: 5,
+            },
+            PrefixTest {
+                input: "-15".to_string(),
+                operator: "-".to_string(),
+                int_val: 15,
+            },
+        ];
+
+        for t in prefix_tests {
+            let l = Lexer::new(t.input);
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errs(&p);
+
+            assert_eq!(
+                program.statements.len(),
+                1,
+                "program.statements does not contain 1 statements. got={}",
+                program.statements.len()
+            );
+
+            let stmt = &program.statements[0];
+            match stmt {
+                Statement::Expression(exp_stmt) => match &exp_stmt.expression {
+                    Expression::PrefixExpression(pre_exp) => {
+                        assert_eq!(pre_exp.operator, t.operator);
+                        test_integer_literal(&pre_exp.right, t.int_val);
+                    }
+                    _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
+                },
+                _ => panic!(
+                    "program.statements[0] is not an ExpressionStatement. got={:#?}",
+                    stmt
+                ),
+            }
+        }
+    }
+
+    fn test_integer_literal(maybe_int_lit: &Box<Expression>, val: i64) {
+        match maybe_int_lit.deref() {
+            Expression::IntegerLiteral(int_lit) => {
+                assert_eq!(
+                    int_lit.val, val,
+                    "int_lit.val {} is not equal to {val}",
+                    int_lit.val
+                );
+                assert_eq!(int_lit.token_literal(), val.to_string());
+            }
+            _ => {
+                eprintln!(
+                    "test_integer_literal err: expect IntegerLiteral, got: {maybe_int_lit:#?}"
+                );
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 use super::statements::{
-    ExpressionStatement, Identifier, IntegerLiteral, LetStatement, ReturnStatement,
+    ExpressionStatement, Identifier, IntegerLiteral, LetStatement, PrefixExpression,
+    ReturnStatement,
 };
 use std::fmt::{self, Display};
 
@@ -7,10 +8,11 @@ pub trait Node: Display {
     fn token_literal(&self) -> String;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
+    PrefixExpression(PrefixExpression),
 }
 
 impl fmt::Display for Expression {
@@ -18,6 +20,7 @@ impl fmt::Display for Expression {
         match self {
             Expression::Identifier(ident) => write!(f, "{}", ident),
             Expression::IntegerLiteral(int_lit) => write!(f, "{}", int_lit),
+            Expression::PrefixExpression(pre_exp) => write!(f, "{}", pre_exp),
         }
     }
 }

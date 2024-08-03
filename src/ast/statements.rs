@@ -21,7 +21,7 @@ impl Node for LetStatement {
     }
 }
 
-impl fmt::Display for LetStatement {
+impl Display for LetStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val = match &self.val {
             Some(t) => format!("{t}"),
@@ -56,7 +56,7 @@ impl Node for ReturnStatement {
     }
 }
 
-impl fmt::Display for ReturnStatement {
+impl Display for ReturnStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val = match &self.val {
             Some(t) => format!("{t}"),
@@ -80,7 +80,7 @@ impl Node for ExpressionStatement {
     }
 }
 
-impl fmt::Display for ExpressionStatement {
+impl Display for ExpressionStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.expression.to_string())
     }
@@ -140,8 +140,37 @@ impl Node for IntegerLiteral {
     }
 }
 
-impl fmt::Display for IntegerLiteral {
+impl Display for IntegerLiteral {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.val)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Box<Expression>,
+}
+
+impl PrefixExpression {
+    pub fn new(token: Token, operator: String, right: Box<Expression>) -> Self {
+        Self {
+            token,
+            operator,
+            right,
+        }
+    }
+}
+
+impl Node for PrefixExpression {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+impl Display for PrefixExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}{})", self.operator, self.right.to_string())
     }
 }
