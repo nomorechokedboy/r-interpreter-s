@@ -1,6 +1,6 @@
 use super::statements::{
-    ExpressionStatement, Identifier, IntegerLiteral, LetStatement, PrefixExpression,
-    ReturnStatement,
+    ExpressionStatement, Identifier, InfixExpression, IntegerLiteral, LetStatement,
+    PrefixExpression, ReturnStatement,
 };
 use std::fmt::{self, Display};
 
@@ -13,6 +13,7 @@ pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     PrefixExpression(PrefixExpression),
+    InfixExpression(InfixExpression),
 }
 
 impl fmt::Display for Expression {
@@ -21,6 +22,7 @@ impl fmt::Display for Expression {
             Expression::Identifier(ident) => write!(f, "{}", ident),
             Expression::IntegerLiteral(int_lit) => write!(f, "{}", int_lit),
             Expression::PrefixExpression(pre_exp) => write!(f, "{}", pre_exp),
+            Expression::InfixExpression(in_exp) => write!(f, "{}", in_exp),
         }
     }
 }

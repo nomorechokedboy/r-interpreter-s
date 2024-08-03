@@ -174,3 +174,45 @@ impl Display for PrefixExpression {
         write!(f, "({}{})", self.operator, self.right.to_string())
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct InfixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Box<Expression>,
+    pub left: Box<Expression>,
+}
+
+impl InfixExpression {
+    pub fn new(
+        token: Token,
+        operator: String,
+        right: Box<Expression>,
+        left: Box<Expression>,
+    ) -> Self {
+        Self {
+            token,
+            operator,
+            right,
+            left,
+        }
+    }
+}
+
+impl Node for InfixExpression {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+impl Display for InfixExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "({} {} {})",
+            self.left.to_string(),
+            self.operator,
+            self.right.to_string()
+        )
+    }
+}
