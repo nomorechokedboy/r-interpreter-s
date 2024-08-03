@@ -2,36 +2,6 @@ use super::base::{Expression, Node};
 use crate::token::Token;
 use std::fmt::{self, Display};
 
-#[derive(Debug, Clone)]
-pub struct Identifier {
-    pub token: Token,
-}
-
-impl Identifier {
-    pub fn new(token: Token) -> Self {
-        return Self { token };
-    }
-
-    pub fn value(&self) -> &str {
-        match &self.token {
-            Token::Ident(s) => s,
-            _ => unreachable!("You should feel bad about yourself"),
-        }
-    }
-}
-
-impl Display for Identifier {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value())
-    }
-}
-
-impl Node for Identifier {
-    fn token_literal(&self) -> String {
-        self.token.to_string()
-    }
-}
-
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
@@ -113,5 +83,65 @@ impl Node for ExpressionStatement {
 impl fmt::Display for ExpressionStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.expression.to_string())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Identifier {
+    pub token: Token,
+}
+
+impl Identifier {
+    pub fn new(token: Token) -> Self {
+        match token {
+            Token::Ident(_) => Self { token },
+            _ => panic!(
+                "Identifier must be created with Token::Ident, got {:?}",
+                token
+            ),
+        }
+    }
+
+    pub fn value(&self) -> &str {
+        match &self.token {
+            Token::Ident(s) => s,
+            _ => panic!("Expected Token::Ident, got {:#?}", self.token),
+        }
+    }
+}
+
+impl Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value())
+    }
+}
+
+impl Node for Identifier {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct IntegerLiteral {
+    pub token: Token,
+    pub val: i64,
+}
+
+impl IntegerLiteral {
+    pub fn new(token: Token, val: i64) -> Self {
+        Self { token, val }
+    }
+}
+
+impl Node for IntegerLiteral {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+impl fmt::Display for IntegerLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.val)
     }
 }

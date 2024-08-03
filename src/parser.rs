@@ -2,15 +2,17 @@ use crate::{
     ast::{
         base::{Expression, Statement},
         program::Program,
-        statements::{ExpressionStatement, Identifier, LetStatement, ReturnStatement},
+        statements::{
+            ExpressionStatement, Identifier, IntegerLiteral, LetStatement, ReturnStatement,
+        },
     },
     lexer::Lexer,
     token::Token,
 };
 use std::collections::HashMap;
 
-type PrefixParseFn = for<'a> fn(&'a mut Parser) -> Expression;
-type InfixParseFn = for<'a> fn(&'a mut Parser, Expression) -> Expression;
+type PrefixParseFn = for<'a> fn(&'a mut Parser) -> Option<Expression>;
+type InfixParseFn = for<'a> fn(&'a mut Parser, Expression) -> Option<Expression>;
 
 pub struct Parser {
     cur_token: Token,
@@ -45,6 +47,7 @@ impl Parser {
         parser.next_token();
         parser.next_token();
         parser.register_prefix(Token::Ident(String::new()), Parser::parse_identifier);
+        parser.register_prefix(Token::Int(String::new()), Parser::parse_integer_literal);
 
         parser
     }
@@ -135,12 +138,34 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let prefix = self.prefix_parse_fns.get(&Token::Ident(String::new()))?;
-        Some(prefix(self))
+        let prefix_parse = self.prefix_parse_fns.iter().find_map(|(key, value)| {
+            if self.cur_token_is(key) {
+                Some(value)
+            } else {
+                None
+            }
+        })?;
+
+        prefix_parse(self)
     }
 
-    fn parse_identifier(&mut self) -> Expression {
-        Expression::Identifier(Identifier::new(self.cur_token.clone()))
+    fn parse_identifier(&mut self) -> Option<Expression> {
+        Some(Expression::Identifier(Identifier::new(
+            self.cur_token.clone(),
+        )))
+    }
+
+    fn parse_integer_literal(&mut self) -> Option<Expression> {
+        match &self.cur_token {
+            Token::Int(s) => {
+                let value = s.parse::<i64>().ok()?;
+                Some(Expression::IntegerLiteral(IntegerLiteral::new(
+                    self.cur_token.clone(),
+                    value,
+                )))
+            }
+            _ => None,
+        }
     }
 
     fn cur_token_is(&self, t: &Token) -> bool {
@@ -301,6 +326,36 @@ mod test {
             }
             _ => eprintln!(
                 "program.Statements[0] is not ast.ExpressionStatement. got={}",
+                stmt.token_literal()
+            ),
+        }
+    }
+
+    #[test]
+    fn test_iteger_literal_expression() {
+        let input = "5";
+        let l = Lexer::new(input.to_string());
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errs(&p);
+
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "program.statements does not contain 1 statements. got={}",
+            program.statements.len()
+        );
+        let stmt = &program.statements[0];
+        match stmt {
+            Statement::Expression(exp_stmt) => match &exp_stmt.expression {
+                Expression::IntegerLiteral(int_lit) => {
+                    assert_eq!(int_lit.val, 5);
+                    assert_eq!(int_lit.token_literal(), "5");
+                }
+                _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
+            },
+            _ => panic!(
+                "program.statements[0] is not an ExpressionStatement. got={}",
                 stmt.token_literal()
             ),
         }

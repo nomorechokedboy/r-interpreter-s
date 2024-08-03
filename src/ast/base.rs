@@ -1,4 +1,6 @@
-use super::statements::{ExpressionStatement, Identifier, LetStatement, ReturnStatement};
+use super::statements::{
+    ExpressionStatement, Identifier, IntegerLiteral, LetStatement, ReturnStatement,
+};
 use std::fmt::{self, Display};
 
 pub trait Node: Display {
@@ -8,12 +10,14 @@ pub trait Node: Display {
 #[derive(Debug, Clone)]
 pub enum Expression {
     Identifier(Identifier),
+    IntegerLiteral(IntegerLiteral),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expression::Identifier(ident) => write!(f, "{}", ident),
+            Expression::IntegerLiteral(int_lit) => write!(f, "{}", int_lit),
         }
     }
 }
