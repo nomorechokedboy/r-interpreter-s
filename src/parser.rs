@@ -492,7 +492,7 @@ mod test {
                 Statement::Expression(exp_stmt) => match &exp_stmt.expression {
                     Expression::PrefixExpression(pre_exp) => {
                         assert_eq!(pre_exp.operator, t.operator);
-                        test_integer_literal(&pre_exp.right, t.int_val);
+                        test_integer_literal(&pre_exp.right.deref().clone(), t.int_val);
                     }
                     _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
                 },
@@ -504,8 +504,8 @@ mod test {
         }
     }
 
-    fn test_integer_literal(maybe_int_lit: &Box<Expression>, val: i64) {
-        match maybe_int_lit.deref() {
+    fn test_integer_literal(maybe_int_lit: &Expression, val: i64) -> bool {
+        match maybe_int_lit {
             Expression::IntegerLiteral(int_lit) => {
                 assert_eq!(
                     int_lit.val, val,
@@ -513,11 +513,13 @@ mod test {
                     int_lit.val
                 );
                 assert_eq!(int_lit.token_literal(), val.to_string());
+                true
             }
             _ => {
                 eprintln!(
                     "test_integer_literal err: expect IntegerLiteral, got: {maybe_int_lit:#?}"
                 );
+                false
             }
         }
     }
@@ -599,16 +601,85 @@ mod test {
             match stmt {
                 Statement::Expression(exp_stmt) => match &exp_stmt.expression {
                     Expression::InfixExpression(in_exp) => {
-                        test_integer_literal(&in_exp.left, t.left_val);
+                        test_integer_literal(&in_exp.left.deref().clone(), t.left_val);
                         assert_eq!(in_exp.operator, t.operator);
-                        test_integer_literal(&in_exp.right, t.right_val);
+                        test_integer_literal(&in_exp.right.deref().clone(), t.right_val);
                     }
                     _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
                 },
-                _ => panic!(
-                    "program.statements[0] is not an ExpressionStatement. got={:#?}",
-                    stmt
-                ),
+                _ => panic!("program.statements[0] is not an ExpressionStatement. got={stmt:#?}",),
+            }
+        }
+    }
+
+    fn test_identifier(exp: &Expression, val: String) -> bool {
+        match exp {
+            Expression::Identifier(ident) => {
+                if ident.value().to_string() != val {
+                    eprintln!("ident.value not {val}. got: {}", ident.value());
+                    return false;
+                }
+
+                if ident.token_literal() != val {
+                    eprintln!(
+                        "ident.token_literal not {val}. got: {}",
+                        ident.token_literal()
+                    );
+                    return false;
+                }
+
+                true
+            }
+            _ => {
+                eprintln!("exp not Expression::Identifier. Got: {exp:#?}");
+                false
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    enum Expected {
+        Int(isize),
+        Int64(i64),
+        String(String),
+    }
+
+    fn test_literal_expression(exp: &Expression, expected: Expected) -> bool {
+        match expected {
+            Expected::Int(val) => {
+                test_integer_literal(exp, val.try_into().expect("shouldn't get error here"))
+            }
+            Expected::Int64(val) => test_integer_literal(exp, val),
+            Expected::String(val) => test_identifier(exp, val),
+        }
+    }
+
+    fn test_infix_expression(
+        expr: Expression,
+        left: Expected,
+        operator: String,
+        right: Expected,
+    ) -> bool {
+        match expr {
+            Expression::InfixExpression(in_expr) => {
+                if !test_literal_expression(in_expr.left.deref(), left) {
+                    return false;
+                }
+
+                if in_expr.operator != operator {
+                    eprintln!("expr.operator is not {operator}. got={}", in_expr.operator);
+                    return false;
+                }
+
+                if !test_literal_expression(in_expr.right.deref(), right) {
+                    return false;
+                }
+
+                true
+            }
+            _ => {
+                eprintln!("expr is not InfixExpression. got={expr:#?}");
+                false
             }
         }
     }
