@@ -216,3 +216,34 @@ impl Display for InfixExpression {
         )
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct Bool {
+    pub token: Token,
+}
+
+impl Bool {
+    pub fn new(token: Token) -> Self {
+        Self { token }
+    }
+
+    pub fn value(&self) -> bool {
+        match &self.token {
+            Token::True => true,
+            Token::False => false,
+            _ => panic!("Expected Token::True|False, got: {:#?}", self.token),
+        }
+    }
+}
+
+impl Node for Bool {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+impl Display for Bool {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.token_literal(),)
+    }
+}
