@@ -1,6 +1,6 @@
 use super::statements::{
-    Bool, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral, LetStatement,
-    PrefixExpression, ReturnStatement,
+    BlockStatement, Bool, ExpressionStatement, Identifier, If, InfixExpression, IntegerLiteral,
+    LetStatement, PrefixExpression, ReturnStatement,
 };
 use std::fmt::{self, Display};
 
@@ -15,6 +15,7 @@ pub enum Expression {
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
     Bool(Bool),
+    IfExpression(If),
 }
 
 impl fmt::Display for Expression {
@@ -25,15 +26,17 @@ impl fmt::Display for Expression {
             Expression::PrefixExpression(pre_exp) => write!(f, "{pre_exp}",),
             Expression::InfixExpression(in_exp) => write!(f, "{in_exp}",),
             Expression::Bool(b) => write!(f, "{b}"),
+            Expression::IfExpression(if_exp) => write!(f, "{if_exp}"),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Statement {
     Let(LetStatement),
     Return(ReturnStatement),
     Expression(ExpressionStatement),
+    // Block(BlockStatement),
 }
 
 impl Node for Statement {
@@ -45,9 +48,10 @@ impl Node for Statement {
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Statement::Let(stmt) => write!(f, "{}", stmt),
-            Statement::Return(stmt) => write!(f, "{}", stmt),
-            Statement::Expression(stmt) => write!(f, "{}", stmt),
+            Statement::Let(stmt) => write!(f, "{stmt}"),
+            Statement::Return(stmt) => write!(f, "{stmt}"),
+            Statement::Expression(stmt) => write!(f, "{stmt}"),
+            // Statement::Block(stmt) => write!(f, "{stmt}"),
         }
     }
 }

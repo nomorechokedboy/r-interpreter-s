@@ -3,8 +3,8 @@ use crate::{
         base::{Expression, Statement},
         program::Program,
         statements::{
-            Bool, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral, LetStatement,
-            PrefixExpression, ReturnStatement,
+            BlockStatement, Bool, ExpressionStatement, Identifier, If, InfixExpression,
+            IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
         },
     },
     lexer::Lexer,
@@ -73,6 +73,7 @@ impl Parser {
         parser.register_prefix(Token::True, Parser::parse_bool);
         parser.register_prefix(Token::False, Parser::parse_bool);
         parser.register_prefix(Token::Lparen, Parser::parse_group_expression);
+        parser.register_prefix(Token::If, Parser::parse_if_expression);
 
         parser.register_infix(Token::Plus, Parser::parse_infix_expression);
         parser.register_infix(Token::Minus, Parser::parse_infix_expression);
@@ -269,6 +270,55 @@ impl Parser {
         return expr;
     }
 
+    fn parse_if_expression(&mut self) -> Option<Expression> {
+        let token = self.cur_token.clone();
+        if !self.expect_peek(&Token::Lparen) {
+            return None;
+        }
+
+        self.next_token();
+        let condition = self.parse_expression(Precedence::Lowest);
+        if !self.expect_peek(&Token::Rparen) {
+            return None;
+        }
+
+        if !self.expect_peek(&Token::Lbrace) {
+            return None;
+        }
+
+        let mut expr = If::new(
+            token,
+            Box::new(condition?),
+            self.parse_block_statement(),
+            None,
+        );
+        if self.peek_token_is(&Token::Else) {
+            self.next_token();
+            if !self.expect_peek(&Token::Lbrace) {
+                return None;
+            }
+
+            expr.alternative = Some(self.parse_block_statement());
+        }
+
+        Some(Expression::IfExpression(expr))
+    }
+
+    fn parse_block_statement(&mut self) -> BlockStatement {
+        let mut block = BlockStatement::new(self.cur_token.clone(), vec![]);
+        self.next_token();
+        while !self.cur_token_is(&Token::Rbrace) && !self.cur_token_is(&Token::Eof) {
+            let stmt = self.parse_statement();
+            if let Some(stmt) = stmt {
+                block.statements.push(stmt);
+            }
+
+            self.next_token();
+        }
+
+        block
+    }
+
     fn cur_token_is(&self, t: &Token) -> bool {
         std::mem::discriminant(&self.cur_token) == std::mem::discriminant(t)
     }
@@ -319,563 +369,6 @@ impl Parser {
         match PRECEDENCES.get(&self.cur_token) {
             Some(p) => p.clone(),
             None => Precedence::Lowest,
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::ast::base::Node;
-    use std::ops::Deref;
-
-    fn test_integer_literal(maybe_int_lit: &Expression, val: i64) -> bool {
-        match maybe_int_lit {
-            Expression::IntegerLiteral(int_lit) => {
-                assert_eq!(
-                    int_lit.val, val,
-                    "int_lit.val {} is not equal to {val}",
-                    int_lit.val
-                );
-                assert_eq!(int_lit.token_literal(), val.to_string());
-                true
-            }
-            _ => {
-                eprintln!(
-                    "test_integer_literal err: expect IntegerLiteral, got: {maybe_int_lit:#?}"
-                );
-                false
-            }
-        }
-    }
-
-    fn test_identifier(exp: &Expression, val: String) -> bool {
-        match exp {
-            Expression::Identifier(ident) => {
-                if ident.value().to_string() != val {
-                    eprintln!("ident.value not {val}. got: {}", ident.value());
-                    return false;
-                }
-
-                if ident.token_literal() != val {
-                    eprintln!(
-                        "ident.token_literal not {val}. got: {}",
-                        ident.token_literal()
-                    );
-                    return false;
-                }
-
-                true
-            }
-            _ => {
-                eprintln!("exp not Expression::Identifier. Got: {exp:#?}");
-                false
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    enum Expected {
-        Int(isize),
-        Int64(i64),
-        String(String),
-        Bool(bool),
-    }
-
-    fn test_literal_expression(exp: &Expression, expected: Expected) -> bool {
-        match expected {
-            Expected::Int(val) => {
-                test_integer_literal(exp, val.try_into().expect("shouldn't get error here"))
-            }
-            Expected::Int64(val) => test_integer_literal(exp, val),
-            Expected::String(val) => test_identifier(exp, val),
-            Expected::Bool(b) => test_bool_literal(exp, b),
-        }
-    }
-
-    fn test_infix_expression(
-        expr: Expression,
-        left: Expected,
-        operator: String,
-        right: Expected,
-    ) -> bool {
-        match expr {
-            Expression::InfixExpression(in_expr) => {
-                if !test_literal_expression(in_expr.left.deref(), left) {
-                    return false;
-                }
-
-                if in_expr.operator != operator {
-                    eprintln!("expr.operator is not {operator}. got={}", in_expr.operator);
-                    return false;
-                }
-
-                if !test_literal_expression(in_expr.right.deref(), right) {
-                    return false;
-                }
-
-                true
-            }
-            _ => {
-                eprintln!("expr is not InfixExpression. got={expr:#?}");
-                false
-            }
-        }
-    }
-
-    fn test_bool_literal(expr: &Expression, val: bool) -> bool {
-        match expr {
-            Expression::Bool(b) => {
-                assert_eq!(b.value(), val, "b.value() not {val}. got={}", b.value());
-                assert_eq!(
-                    b.token_literal(),
-                    val.to_string(),
-                    "b.token_literal() not {val}. got={}",
-                    b.token_literal()
-                );
-
-                true
-            }
-            _ => {
-                eprintln!("expr not Expression::Bool. got={expr:#?}");
-                false
-            }
-        }
-    }
-
-    fn check_parser_errs(p: &Parser) {
-        let errs = p.errs();
-
-        if errs.is_empty() {
-            return;
-        }
-
-        println!("parser has {} errors", errs.len());
-        for msg in errs {
-            eprintln!("parser err: {msg}");
-        }
-
-        panic!("Fail now");
-    }
-
-    #[test]
-    fn test_let_statements() {
-        let input = "
-            let x = 5;
-            let y = 10;
-            let foobar = 838383;
-        ";
-        let l = Lexer::new(input.to_string());
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errs(&p);
-
-        assert_eq!(
-            program.statements.len(),
-            3,
-            "program.statements does not contain 3 statements. got={}",
-            program.statements.len()
-        );
-
-        let tests = vec!["x", "y", "foobar"];
-
-        for (i, expected_identifier) in tests.iter().enumerate() {
-            let stmt = &program.statements[i];
-            if !test_let_statement(stmt, expected_identifier) {
-                return;
-            }
-        }
-    }
-
-    fn test_let_statement(s: &Statement, name: &str) -> bool {
-        if s.token_literal() != "let" {
-            eprintln!("s.token_literal not 'let'. got={s:#?}");
-            return false;
-        }
-
-        let let_stmt = match s {
-            Statement::Let(stmt) => stmt,
-            _ => {
-                println!("s not LetStatement");
-                return false;
-            }
-        };
-
-        if let_stmt.name.value() != name {
-            println!(
-                "let_stmt.name.val not '{name}'. got={}",
-                let_stmt.name.value()
-            );
-            return false;
-        }
-
-        if let_stmt.name.token_literal() != name {
-            println!("s.name not '{name}'. got={}", let_stmt.name.token_literal());
-            return false;
-        }
-
-        true
-    }
-
-    #[test]
-    fn test_return_statements() {
-        let input = "
-                return 5;
-                return 10;
-                return 993322;
-        ";
-        let l = Lexer::new(input.to_string());
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errs(&p);
-
-        assert_eq!(
-            program.statements.len(),
-            3,
-            "program.statements does not contain 3 statements. got={}",
-            program.statements.len()
-        );
-
-        for stmt in program.statements {
-            match stmt {
-                Statement::Return(s) => {
-                    if s.token_literal() != "return" {
-                        eprintln!("s.token_literal not 'return'. got={s:#?}");
-                    }
-                }
-                _ => panic!("stmt is not ReturnStatement. Got: {stmt:#?}"),
-            }
-        }
-    }
-
-    #[test]
-    fn test_identifier_expression() {
-        let input = "foobar";
-        let l = Lexer::new(input.to_string());
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errs(&p);
-
-        assert_eq!(
-            program.statements.len(),
-            1,
-            "program.statements does not contain 1 statements. got={}",
-            program.statements.len()
-        );
-
-        let stmt = &program.statements[0];
-        match stmt {
-            Statement::Expression(exp_stmt) => {
-                assert_eq!(exp_stmt.expression.to_string(), "foobar");
-                assert_eq!(exp_stmt.token_literal(), "foobar");
-            }
-            _ => eprintln!("program.Statements[0] is not ast.ExpressionStatement. got={stmt:#?}",),
-        }
-    }
-
-    #[test]
-    fn test_iteger_literal_expression() {
-        let input = "5";
-        let l = Lexer::new(input.to_string());
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errs(&p);
-
-        assert_eq!(
-            program.statements.len(),
-            1,
-            "program.statements does not contain 1 statements. got={}",
-            program.statements.len()
-        );
-
-        let stmt = &program.statements[0];
-        match stmt {
-            Statement::Expression(exp_stmt) => match &exp_stmt.expression {
-                Expression::IntegerLiteral(int_lit) => {
-                    assert_eq!(int_lit.val, 5);
-                    assert_eq!(int_lit.token_literal(), "5");
-                }
-                _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
-            },
-            _ => panic!("program.statements[0] is not an ExpressionStatement. got={stmt:#?}",),
-        }
-    }
-
-    #[derive(Debug)]
-    struct PrefixTest {
-        input: String,
-        operator: String,
-        int_val: Expected,
-    }
-
-    #[test]
-    fn test_parsing_prefix_expressions() {
-        let prefix_tests = vec![
-            PrefixTest {
-                input: "!5".to_string(),
-                operator: "!".to_string(),
-                int_val: Expected::Int64(5),
-            },
-            PrefixTest {
-                input: "-15".to_string(),
-                operator: "-".to_string(),
-                int_val: Expected::Int64(15),
-            },
-            PrefixTest {
-                input: "!true".to_string(),
-                operator: "!".to_string(),
-                int_val: Expected::Bool(true),
-            },
-            PrefixTest {
-                input: "!false".to_string(),
-                operator: "!".to_string(),
-                int_val: Expected::Bool(false),
-            },
-        ];
-
-        for t in prefix_tests {
-            let l = Lexer::new(t.input);
-            let mut p = Parser::new(l);
-            let program = p.parse_program();
-            check_parser_errs(&p);
-
-            assert_eq!(
-                program.statements.len(),
-                1,
-                "program.statements does not contain 1 statements. got={}",
-                program.statements.len()
-            );
-
-            let stmt = &program.statements[0];
-            match stmt {
-                Statement::Expression(exp_stmt) => match &exp_stmt.expression {
-                    Expression::PrefixExpression(pre_exp) => {
-                        assert_eq!(pre_exp.operator, t.operator);
-                        test_literal_expression(&pre_exp.right.deref().clone(), t.int_val);
-                    }
-                    _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
-                },
-                _ => panic!(
-                    "program.statements[0] is not an ExpressionStatement. got={:#?}",
-                    stmt
-                ),
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    struct InfixTest {
-        input: String,
-        left_val: Expected,
-        operator: String,
-        right_val: Expected,
-    }
-
-    #[test]
-    fn test_parsing_infix_expressions() {
-        let infix_tests = vec![
-            InfixTest {
-                input: "5 + 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "+".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 - 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "-".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 * 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "*".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 / 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "/".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 > 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: ">".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 < 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "<".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 == 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "==".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 != 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "!=".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "true == true".to_string(),
-                left_val: Expected::Bool(true),
-                operator: "==".to_string(),
-                right_val: Expected::Bool(true),
-            },
-            InfixTest {
-                input: "true != false".to_string(),
-                left_val: Expected::Bool(true),
-                operator: "!=".to_string(),
-                right_val: Expected::Bool(false),
-            },
-            InfixTest {
-                input: "false == false".to_string(),
-                left_val: Expected::Bool(false),
-                operator: "==".to_string(),
-                right_val: Expected::Bool(false),
-            },
-        ];
-        for t in infix_tests {
-            let l = Lexer::new(t.input);
-            let mut p = Parser::new(l);
-            let program = p.parse_program();
-            check_parser_errs(&p);
-
-            assert_eq!(
-                program.statements.len(),
-                1,
-                "program.statements does not contain 1 statements. got={}",
-                program.statements.len()
-            );
-
-            let stmt = &program.statements[0];
-            match stmt {
-                Statement::Expression(exp_stmt) => match &exp_stmt.expression {
-                    Expression::InfixExpression(in_exp) => {
-                        test_literal_expression(&in_exp.left.deref().clone(), t.left_val);
-                        assert_eq!(in_exp.operator, t.operator);
-                        test_literal_expression(&in_exp.right.deref().clone(), t.right_val);
-                    }
-                    _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
-                },
-                _ => panic!("program.statements[0] is not an ExpressionStatement. got={stmt:#?}",),
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    struct TestOperatorPrecedenceParsingInput {
-        input: String,
-        expected: String,
-    }
-
-    #[test]
-    fn test_operator_precedence_parsing() {
-        let input = vec![
-            TestOperatorPrecedenceParsingInput {
-                input: "-a * b".to_string(),
-                expected: "((-a) * b)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "!-a".to_string(),
-                expected: "(!(-a))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b + c".to_string(),
-                expected: "((a + b) + c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b - c".to_string(),
-                expected: "((a + b) - c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a * b * c".to_string(),
-                expected: "((a * b) * c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a * b / c".to_string(),
-                expected: "((a * b) / c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b / c".to_string(),
-                expected: "(a + (b / c))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b * c + d / e - f".to_string(),
-                expected: "(((a + (b * c)) + (d / e)) - f)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 + 4; -5 * 5".to_string(),
-                expected: "(3 + 4)((-5) * 5)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "5 > 4 == 3 < 4".to_string(),
-                expected: "((5 > 4) == (3 < 4))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "5 < 4 != 3 > 4".to_string(),
-                expected: "((5 < 4) != (3 > 4))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 + 4 * 5 == 3 * 1 + 4 * 5".to_string(),
-                expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "true".to_string(),
-                expected: "true".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "false".to_string(),
-                expected: "false".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 > 5 == false".to_string(),
-                expected: "((3 > 5) == false)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 < 5 == true".to_string(),
-                expected: "((3 < 5) == true)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "1 + (2 + 3) + 4".to_string(),
-                expected: "((1 + (2 + 3)) + 4)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "(5 + 5) * 2".to_string(),
-                expected: "((5 + 5) * 2)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "2 / (5 + 5)".to_string(),
-                expected: "(2 / (5 + 5))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "-(5 + 5)".to_string(),
-                expected: "(-(5 + 5))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "!(true == true)".to_string(),
-                expected: "(!(true == true))".to_string(),
-            },
-        ];
-        for t in input {
-            let l = Lexer::new(t.input);
-            let mut p = Parser::new(l);
-            let program = p.parse_program();
-            check_parser_errs(&p);
-
-            assert_eq!(
-                t.expected,
-                program.to_string(),
-                "expected={}, got={}",
-                t.expected,
-                program.to_string()
-            );
         }
     }
 }

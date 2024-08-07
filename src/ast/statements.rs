@@ -1,8 +1,11 @@
-use super::base::{Expression, Node};
+use super::base::{Expression, Node, Statement};
 use crate::token::Token;
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    io::Write,
+};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -38,7 +41,7 @@ impl Display for LetStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ReturnStatement {
     pub token: Token,
     pub val: Option<Expression>,
@@ -68,7 +71,7 @@ impl Display for ReturnStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ExpressionStatement {
     pub token: Token,
     pub expression: Expression,
@@ -245,5 +248,85 @@ impl Node for Bool {
 impl Display for Bool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.token_literal(),)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BlockStatement {
+    pub token: Token,
+    pub statements: Vec<Statement>,
+}
+
+impl BlockStatement {
+    pub fn new(token: Token, statements: Vec<Statement>) -> Self {
+        Self { token, statements }
+    }
+}
+
+impl Display for BlockStatement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out = Vec::new();
+        for statement in &self.statements {
+            write!(out, "{}", statement).expect("should safely write to out");
+        }
+
+        write!(
+            f,
+            "{}",
+            String::from_utf8(out).expect("should safely unwrap")
+        )
+    }
+}
+
+impl Node for BlockStatement {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct If {
+    pub token: Token,
+    pub condition: Box<Expression>,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+impl If {
+    pub fn new(
+        token: Token,
+        condition: Box<Expression>,
+        consequence: BlockStatement,
+        alternative: Option<BlockStatement>,
+    ) -> Self {
+        Self {
+            token,
+            condition,
+            consequence,
+            alternative,
+        }
+    }
+}
+
+impl Display for If {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let alternative = if let Some(alt) = &self.alternative {
+            format!("else{}", alt.to_string())
+        } else {
+            String::new()
+        };
+        write!(
+            f,
+            "if{} {}{}",
+            self.condition.to_string(),
+            self.consequence.to_string(),
+            alternative
+        )
+    }
+}
+
+impl Node for If {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
     }
 }
