@@ -130,21 +130,17 @@ impl Parser {
         }
 
         let name = Identifier::new(self.cur_token.clone());
-
         if !self.expect_peek(&Token::Assign) {
             return None;
         }
 
-        while !self.cur_token_is(&Token::Semicolon) {
+        self.next_token();
+        let val = self.parse_expression(Precedence::Lowest);
+        if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
-        let stmt = LetStatement {
-            token,
-            name,
-            val: None,
-        };
-
+        let stmt = LetStatement { token, name, val };
         Some(Statement::Let(stmt))
     }
 
@@ -152,11 +148,12 @@ impl Parser {
         let token = self.cur_token.clone();
         self.next_token();
 
-        while !self.cur_token_is(&Token::Semicolon) {
+        let val = self.parse_expression(Precedence::Lowest);
+        if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
-        Some(Statement::Return(ReturnStatement::new(token, None)))
+        Some(Statement::Return(ReturnStatement::new(token, val)))
     }
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
