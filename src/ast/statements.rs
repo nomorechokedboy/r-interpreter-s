@@ -382,6 +382,16 @@ pub struct Call {
     pub token: Token,
 }
 
+impl Call {
+    pub fn new(args: Vec<Expression>, function: Box<Expression>, token: Token) -> Self {
+        Self {
+            args,
+            function,
+            token,
+        }
+    }
+}
+
 impl Node for Call {
     fn token_literal(&self) -> String {
         self.token.to_string()

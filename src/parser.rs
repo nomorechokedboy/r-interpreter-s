@@ -3,8 +3,8 @@ use crate::{
         base::{Expression, Statement},
         program::Program,
         statements::{
-            BlockStatement, Bool, ExpressionStatement, Function, Identifier, If, InfixExpression,
-            IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
+            BlockStatement, Bool, Call, ExpressionStatement, Function, Identifier, If,
+            InfixExpression, IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
         },
     },
     lexer::Lexer,
@@ -24,6 +24,7 @@ lazy_static! {
             (Token::Minus, Precedence::Sum),
             (Token::Slash, Precedence::Product),
             (Token::Asterisk, Precedence::Product),
+            (Token::Lparen, Precedence::Call),
         ]);
 
         m
@@ -84,6 +85,7 @@ impl Parser {
         parser.register_infix(Token::NotEqual, Parser::parse_infix_expression);
         parser.register_infix(Token::LessThan, Parser::parse_infix_expression);
         parser.register_infix(Token::GreaterThan, Parser::parse_infix_expression);
+        parser.register_infix(Token::Lparen, Parser::parse_call_expr);
 
         parser
     }
@@ -357,6 +359,36 @@ impl Parser {
         }
 
         Some(identifiers)
+    }
+
+    fn parse_call_expr(&mut self, function: Expression) -> Option<Expression> {
+        Some(Expression::CallExpression(Call::new(
+            self.parse_call_args()?,
+            Box::new(function),
+            self.cur_token.clone(),
+        )))
+    }
+
+    fn parse_call_args(&mut self) -> Option<Vec<Expression>> {
+        let mut args = Vec::new();
+        if self.peek_token_is(&Token::Lparen) {
+            self.next_token();
+            return Some(args);
+        }
+
+        self.next_token();
+        args.push(self.parse_expression(Precedence::Lowest)?);
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            args.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(&Token::Rparen) {
+            return None;
+        }
+
+        Some(args)
     }
 
     fn cur_token_is(&self, t: &Token) -> bool {
