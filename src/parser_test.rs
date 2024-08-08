@@ -138,29 +138,38 @@ mod test {
 
     #[test]
     fn test_let_statements() {
-        let input = "
-            let x = 5;
-            let y = 10;
-            let foobar = 838383;
-        ";
-        let l = Lexer::new(input.to_string());
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errs(&p);
+        let tests = vec![
+            ("let x = 5;", "x", Expected::Int64(5)),
+            ("let y = true;", "y", Expected::Bool(true)),
+            (
+                "let foobar = y;",
+                "foobar",
+                Expected::String("y".to_string()),
+            ),
+        ];
+        for (input, expected_ident, expected_val) in tests {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errs(&p);
 
-        assert_eq!(
-            program.statements.len(),
-            3,
-            "program.statements does not contain 3 statements. got={}",
-            program.statements.len()
-        );
+            assert_eq!(
+                program.statements.len(),
+                1,
+                "program.statements does not contain 1 statements. got={}",
+                program.statements.len()
+            );
+            let stmt = &program.statements[0];
+            test_let_statement(stmt, expected_ident);
 
-        let tests = vec!["x", "y", "foobar"];
-
-        for (i, expected_identifier) in tests.iter().enumerate() {
-            let stmt = &program.statements[i];
-            if !test_let_statement(stmt, expected_identifier) {
-                return;
+            match stmt {
+                Statement::Let(stmt) => {
+                    test_literal_expression(
+                        &stmt.val.clone().expect("should have val"),
+                        expected_val,
+                    );
+                }
+                _ => panic!("shouldn't happen"),
             }
         }
     }
@@ -197,29 +206,31 @@ mod test {
 
     #[test]
     fn test_return_statements() {
-        let input = "
-                return 5;
-                return 10;
-                return 993322;
-        ";
-        let l = Lexer::new(input.to_string());
-        let mut p = Parser::new(l);
-        let program = p.parse_program();
-        check_parser_errs(&p);
+        let tests = vec![
+            ("return 5;", Expected::Int64(5)),
+            ("return 10;", Expected::Int64(10)),
+            ("return 993322;", Expected::Int64(993322)),
+        ];
+        for (input, expected) in tests {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errs(&p);
 
-        assert_eq!(
-            program.statements.len(),
-            3,
-            "program.statements does not contain 3 statements. got={}",
-            program.statements.len()
-        );
+            assert_eq!(
+                program.statements.len(),
+                1,
+                "program.statements does not contain 1 statements. got={}",
+                program.statements.len()
+            );
 
-        for stmt in program.statements {
+            let stmt = &program.statements[0];
             match stmt {
                 Statement::Return(s) => {
                     if s.token_literal() != "return" {
                         eprintln!("s.token_literal not 'return'. got={s:#?}");
                     }
+                    test_literal_expression(&s.val.clone().expect("shouldn't err"), expected);
                 }
                 _ => panic!("stmt is not ReturnStatement. Got: {stmt:#?}"),
             }
