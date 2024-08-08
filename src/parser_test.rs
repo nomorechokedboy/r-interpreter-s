@@ -796,4 +796,51 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn test_call_expression_parsing() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+        let l = Lexer::new(input.to_string());
+        let mut p = Parser::new(l);
+        let program = p.parse_program();
+        check_parser_errs(&p);
+
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "program.statements doesn't contain 1 statements. got={}",
+            program.statements.len()
+        );
+
+        let stmt = &program.statements[0];
+        match stmt {
+            Statement::Expression(expr) => match &expr.expression {
+                Expression::CallExpression(expr) => {
+                    let _ = !test_identifier(&*expr.function, "add".to_string());
+                    assert_eq!(
+                        3,
+                        expr.args.len(),
+                        "wrong len of args. got: {}",
+                        expr.args.len()
+                    );
+
+                    test_literal_expression(&expr.args[0], Expected::Int64(1));
+                    test_infix_expression(
+                        expr.args[1].clone(),
+                        Expected::Int64(2),
+                        "*".to_string(),
+                        Expected::Int64(3),
+                    );
+                    test_infix_expression(
+                        expr.args[2].clone(),
+                        Expected::Int64(4),
+                        "+".to_string(),
+                        Expected::Int64(5),
+                    );
+                }
+                _ => panic!("expr is not CallExpression. got={:#?}", expr.expression),
+            },
+            _ => panic!("program.statements[0] is not Statement::Expression. got: {stmt:#?}"),
+        }
+    }
 }
