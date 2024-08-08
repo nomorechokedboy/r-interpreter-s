@@ -1,5 +1,5 @@
 use super::statements::{
-    BlockStatement, Bool, ExpressionStatement, Function, Identifier, If, InfixExpression,
+    BlockStatement, Bool, Call, ExpressionStatement, Function, Identifier, If, InfixExpression,
     IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
 };
 use std::fmt::{self, Display};
@@ -17,6 +17,7 @@ pub enum Expression {
     Bool(Bool),
     IfExpression(If),
     FunctionLiteral(Function),
+    CallExpression(Call),
 }
 
 impl fmt::Display for Expression {
@@ -29,6 +30,7 @@ impl fmt::Display for Expression {
             Expression::Bool(expr) => write!(f, "{expr}"),
             Expression::IfExpression(expr) => write!(f, "{expr}"),
             Expression::FunctionLiteral(expr) => write!(f, "{expr}"),
+            Expression::CallExpression(expr) => write!(f, "{expr}"),
         }
     }
 }

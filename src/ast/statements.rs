@@ -374,3 +374,27 @@ impl Display for Function {
         )
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct Call {
+    pub args: Vec<Expression>,
+    pub function: Box<Expression>,
+    pub token: Token,
+}
+
+impl Node for Call {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+impl Display for Call {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut args = vec![];
+        for arg in &self.args {
+            args.push(arg.to_string());
+        }
+
+        write!(f, "{}({})", self.function.to_string(), args.join(", "))
+    }
+}
