@@ -330,3 +330,47 @@ impl Node for If {
         self.token.to_string()
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct Function {
+    pub token: Token,
+    pub params: Vec<Expression>,
+    pub body: Option<BlockStatement>,
+}
+
+impl Function {
+    pub fn new(token: Token, params: Vec<Expression>, body: Option<BlockStatement>) -> Self {
+        Self {
+            token,
+            params,
+            body,
+        }
+    }
+}
+
+impl Node for Function {
+    fn token_literal(&self) -> String {
+        self.token.to_string()
+    }
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut params = vec![];
+        for p in &self.params {
+            params.push(p.to_string())
+        }
+        let body = match &self.body {
+            None => String::new(),
+            Some(block_stmt) => block_stmt.to_string(),
+        };
+
+        write!(
+            f,
+            "{}({}) {}",
+            self.token_literal(),
+            params.join(", "),
+            body
+        )
+    }
+}

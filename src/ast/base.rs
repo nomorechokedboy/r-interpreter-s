@@ -1,6 +1,6 @@
 use super::statements::{
-    BlockStatement, Bool, ExpressionStatement, Identifier, If, InfixExpression, IntegerLiteral,
-    LetStatement, PrefixExpression, ReturnStatement,
+    BlockStatement, Bool, ExpressionStatement, Function, Identifier, If, InfixExpression,
+    IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
 };
 use std::fmt::{self, Display};
 
@@ -16,17 +16,19 @@ pub enum Expression {
     InfixExpression(InfixExpression),
     Bool(Bool),
     IfExpression(If),
+    FunctionLiteral(Function),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expression::Identifier(ident) => write!(f, "{ident}",),
-            Expression::IntegerLiteral(int_lit) => write!(f, "{int_lit}",),
-            Expression::PrefixExpression(pre_exp) => write!(f, "{pre_exp}",),
-            Expression::InfixExpression(in_exp) => write!(f, "{in_exp}",),
-            Expression::Bool(b) => write!(f, "{b}"),
-            Expression::IfExpression(if_exp) => write!(f, "{if_exp}"),
+            Expression::Identifier(expr) => write!(f, "{expr}",),
+            Expression::IntegerLiteral(expr) => write!(f, "{expr}",),
+            Expression::PrefixExpression(expr) => write!(f, "{expr}",),
+            Expression::InfixExpression(expr) => write!(f, "{expr}",),
+            Expression::Bool(expr) => write!(f, "{expr}"),
+            Expression::IfExpression(expr) => write!(f, "{expr}"),
+            Expression::FunctionLiteral(expr) => write!(f, "{expr}"),
         }
     }
 }
