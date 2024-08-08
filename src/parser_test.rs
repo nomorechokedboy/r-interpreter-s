@@ -279,40 +279,17 @@ mod test {
         }
     }
 
-    #[derive(Debug)]
-    struct PrefixTest {
-        input: String,
-        operator: String,
-        int_val: Expected,
-    }
-
     #[test]
     fn test_parsing_prefix_expressions() {
         let prefix_tests = vec![
-            PrefixTest {
-                input: "!5".to_string(),
-                operator: "!".to_string(),
-                int_val: Expected::Int64(5),
-            },
-            PrefixTest {
-                input: "-15".to_string(),
-                operator: "-".to_string(),
-                int_val: Expected::Int64(15),
-            },
-            PrefixTest {
-                input: "!true".to_string(),
-                operator: "!".to_string(),
-                int_val: Expected::Bool(true),
-            },
-            PrefixTest {
-                input: "!false".to_string(),
-                operator: "!".to_string(),
-                int_val: Expected::Bool(false),
-            },
+            ("!5", "!", Expected::Int64(5)),
+            ("-15", "-", Expected::Int64(15)),
+            ("!true", "!", Expected::Bool(true)),
+            ("!false", "!", Expected::Bool(false)),
         ];
 
-        for t in prefix_tests {
-            let l = Lexer::new(t.input);
+        for (input, operator, val) in prefix_tests {
+            let l = Lexer::new(input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errs(&p);
@@ -328,8 +305,8 @@ mod test {
             match stmt {
                 Statement::Expression(exp_stmt) => match &exp_stmt.expression {
                     Expression::PrefixExpression(pre_exp) => {
-                        assert_eq!(pre_exp.operator, t.operator);
-                        test_literal_expression(&pre_exp.right.deref().clone(), t.int_val);
+                        assert_eq!(pre_exp.operator, operator);
+                        test_literal_expression(&pre_exp.right.deref().clone(), val);
                     }
                     _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
                 },
@@ -341,86 +318,38 @@ mod test {
         }
     }
 
-    #[derive(Debug)]
-    struct InfixTest {
-        input: String,
-        left_val: Expected,
-        operator: String,
-        right_val: Expected,
-    }
-
     #[test]
     fn test_parsing_infix_expressions() {
         let infix_tests = vec![
-            InfixTest {
-                input: "5 + 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "+".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 - 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "-".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 * 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "*".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 / 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "/".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 > 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: ">".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 < 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "<".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 == 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "==".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "5 != 5".to_string(),
-                left_val: Expected::Int64(5),
-                operator: "!=".to_string(),
-                right_val: Expected::Int64(5),
-            },
-            InfixTest {
-                input: "true == true".to_string(),
-                left_val: Expected::Bool(true),
-                operator: "==".to_string(),
-                right_val: Expected::Bool(true),
-            },
-            InfixTest {
-                input: "true != false".to_string(),
-                left_val: Expected::Bool(true),
-                operator: "!=".to_string(),
-                right_val: Expected::Bool(false),
-            },
-            InfixTest {
-                input: "false == false".to_string(),
-                left_val: Expected::Bool(false),
-                operator: "==".to_string(),
-                right_val: Expected::Bool(false),
-            },
+            ("5 + 5", Expected::Int64(5), "+", Expected::Int64(5)),
+            ("5 - 5", Expected::Int64(5), "-", Expected::Int64(5)),
+            ("5 * 5", Expected::Int64(5), "*", Expected::Int64(5)),
+            ("5 / 5", Expected::Int64(5), "/", Expected::Int64(5)),
+            ("5 > 5", Expected::Int64(5), ">", Expected::Int64(5)),
+            ("5 < 5", Expected::Int64(5), "<", Expected::Int64(5)),
+            ("5 == 5", Expected::Int64(5), "==", Expected::Int64(5)),
+            ("5 != 5", Expected::Int64(5), "!=", Expected::Int64(5)),
+            (
+                "true == true",
+                Expected::Bool(true),
+                "==",
+                Expected::Bool(true),
+            ),
+            (
+                "true != false",
+                Expected::Bool(true),
+                "!=",
+                Expected::Bool(false),
+            ),
+            (
+                "false == false",
+                Expected::Bool(false),
+                "==",
+                Expected::Bool(false),
+            ),
         ];
-        for t in infix_tests {
-            let l = Lexer::new(t.input);
+        for (input, left_val, operator, right_val) in infix_tests {
+            let l = Lexer::new(input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errs(&p);
@@ -436,9 +365,9 @@ mod test {
             match stmt {
                 Statement::Expression(exp_stmt) => match &exp_stmt.expression {
                     Expression::InfixExpression(in_exp) => {
-                        test_literal_expression(&in_exp.left.deref().clone(), t.left_val);
-                        assert_eq!(in_exp.operator, t.operator);
-                        test_literal_expression(&in_exp.right.deref().clone(), t.right_val);
+                        test_literal_expression(&in_exp.left.deref().clone(), left_val);
+                        assert_eq!(in_exp.operator, operator);
+                        test_literal_expression(&in_exp.right.deref().clone(), right_val);
                     }
                     _ => panic!("exp not IntegerLiteral. got={:?}", exp_stmt.expression),
                 },
@@ -447,111 +376,54 @@ mod test {
         }
     }
 
-    #[derive(Debug)]
-    struct TestOperatorPrecedenceParsingInput {
-        input: String,
-        expected: String,
-    }
-
     #[test]
     fn test_operator_precedence_parsing() {
         let input = vec![
-            TestOperatorPrecedenceParsingInput {
-                input: "-a * b".to_string(),
-                expected: "((-a) * b)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "!-a".to_string(),
-                expected: "(!(-a))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b + c".to_string(),
-                expected: "((a + b) + c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b - c".to_string(),
-                expected: "((a + b) - c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a * b * c".to_string(),
-                expected: "((a * b) * c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a * b / c".to_string(),
-                expected: "((a * b) / c)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b / c".to_string(),
-                expected: "(a + (b / c))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "a + b * c + d / e - f".to_string(),
-                expected: "(((a + (b * c)) + (d / e)) - f)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 + 4; -5 * 5".to_string(),
-                expected: "(3 + 4)((-5) * 5)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "5 > 4 == 3 < 4".to_string(),
-                expected: "((5 > 4) == (3 < 4))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "5 < 4 != 3 > 4".to_string(),
-                expected: "((5 < 4) != (3 > 4))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 + 4 * 5 == 3 * 1 + 4 * 5".to_string(),
-                expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "true".to_string(),
-                expected: "true".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "false".to_string(),
-                expected: "false".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 > 5 == false".to_string(),
-                expected: "((3 > 5) == false)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "3 < 5 == true".to_string(),
-                expected: "((3 < 5) == true)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "1 + (2 + 3) + 4".to_string(),
-                expected: "((1 + (2 + 3)) + 4)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "(5 + 5) * 2".to_string(),
-                expected: "((5 + 5) * 2)".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "2 / (5 + 5)".to_string(),
-                expected: "(2 / (5 + 5))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "-(5 + 5)".to_string(),
-                expected: "(-(5 + 5))".to_string(),
-            },
-            TestOperatorPrecedenceParsingInput {
-                input: "!(true == true)".to_string(),
-                expected: "(!(true == true))".to_string(),
-            },
+            ("-a * b", "((-a) * b)"),
+            ("!-a", "(!(-a))"),
+            ("a + b + c", "((a + b) + c)"),
+            ("a + b - c", "((a + b) - c)"),
+            ("a * b * c", "((a * b) * c)"),
+            ("a * b / c", "((a * b) / c)"),
+            ("a + b / c", "(a + (b / c))"),
+            ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+            ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
+            ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+            ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+            ("true", "true"),
+            ("false", "false"),
+            ("3 > 5 == false", "((3 > 5) == false)"),
+            ("3 < 5 == true", "((3 < 5) == true)"),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2", "((5 + 5) * 2)"),
+            ("2 / (5 + 5)", "(2 / (5 + 5))"),
+            ("-(5 + 5)", "(-(5 + 5))"),
+            ("!(true == true)", "(!(true == true))"),
+            ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
+            (
+                "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+                "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+            ),
+            (
+                "add(a + b + c * d / f + g)",
+                "add((((a + b) + ((c * d) / f)) + g))",
+            ),
         ];
-        for t in input {
-            let l = Lexer::new(t.input);
+        for (input, expected) in input {
+            let l = Lexer::new(input.to_string());
             let mut p = Parser::new(l);
             let program = p.parse_program();
             check_parser_errs(&p);
 
             assert_eq!(
-                t.expected,
+                expected,
                 program.to_string(),
                 "expected={}, got={}",
-                t.expected,
+                expected,
                 program.to_string()
             );
         }
@@ -559,8 +431,8 @@ mod test {
 
     #[test]
     fn test_if_expr() {
-        let input = "if (x < y) { x }".to_string();
-        let l = Lexer::new(input);
+        let input = "if (x < y) { x }";
+        let l = Lexer::new(input.to_string());
         let mut p = Parser::new(l);
         let program = p.parse_program();
         check_parser_errs(&p);
