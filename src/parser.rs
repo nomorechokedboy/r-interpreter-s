@@ -3,7 +3,7 @@ use crate::{
         base::{Expression, Statement},
         program::Program,
         statements::{
-            BlockStatement, Bool, ExpressionStatement, Identifier, If, InfixExpression,
+            BlockStatement, Bool, ExpressionStatement, Function, Identifier, If, InfixExpression,
             IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
         },
     },
@@ -74,6 +74,7 @@ impl Parser {
         parser.register_prefix(Token::False, Parser::parse_bool);
         parser.register_prefix(Token::Lparen, Parser::parse_group_expression);
         parser.register_prefix(Token::If, Parser::parse_if_expression);
+        parser.register_prefix(Token::Function, Parser::parse_function_literal);
 
         parser.register_infix(Token::Plus, Parser::parse_infix_expression);
         parser.register_infix(Token::Minus, Parser::parse_infix_expression);
@@ -317,6 +318,45 @@ impl Parser {
         }
 
         block
+    }
+
+    fn parse_function_literal(&mut self) -> Option<Expression> {
+        let token = self.cur_token.clone();
+        if !self.expect_peek(&Token::Lparen) {
+            return None;
+        }
+
+        let params = self.parse_function_params()?;
+        if !self.expect_peek(&Token::Lbrace) {
+            return None;
+        }
+
+        let body = self.parse_block_statement();
+        let lit = Function::new(token, params, Some(body));
+        Some(Expression::FunctionLiteral(lit))
+    }
+
+    fn parse_function_params(&mut self) -> Option<Vec<Expression>> {
+        let mut identifiers = Vec::<Expression>::new();
+        if self.peek_token_is(&Token::Rparen) {
+            self.next_token();
+            return Some(identifiers);
+        }
+
+        self.next_token();
+        let ident = Expression::Identifier(Identifier::new(self.cur_token.clone()));
+        identifiers.push(ident);
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            let ident = Expression::Identifier(Identifier::new(self.cur_token.clone()));
+            identifiers.push(ident);
+        }
+        if !self.expect_peek(&Token::Rparen) {
+            return None;
+        }
+
+        Some(identifiers)
     }
 
     fn cur_token_is(&self, t: &Token) -> bool {

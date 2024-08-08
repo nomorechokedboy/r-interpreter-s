@@ -748,4 +748,52 @@ mod test {
             _ => panic!("program.statements[0] is not Statement::Expression. got: {stmt:#?}"),
         }
     }
+
+    #[test]
+    fn test_function_params_parsing() {
+        let tests = vec![
+            ("fn() {};", Vec::<&str>::new()),
+            ("fn(x) {};", vec!["x"]),
+            ("fn(x, y, z) {};", vec!["x", "y", "z"]),
+        ];
+        for (input, expected_params) in tests {
+            let l = Lexer::new(input.to_string());
+            let mut p = Parser::new(l);
+            let program = p.parse_program();
+            check_parser_errs(&p);
+
+            assert_eq!(
+                program.statements.len(),
+                1,
+                "program.statements doesn't contain 1 statements. got={}",
+                program.statements.len()
+            );
+
+            let stmt = &program.statements[0];
+            match stmt {
+                Statement::Expression(expr) => match &expr.expression {
+                    Expression::FunctionLiteral(expr) => {
+                        assert_eq!(
+                            expected_params.len(),
+                            expr.params.len(),
+                            "function literal params are wrong. want 2, got={}",
+                            expr.params.len()
+                        );
+
+                        for (i, &ident) in expected_params.iter().enumerate() {
+                            test_literal_expression(
+                                &expr.params[i],
+                                Expected::String(ident.to_string()),
+                            );
+                        }
+                    }
+                    _ => panic!(
+                        "expr.expression is not FunctionLiteral. got={:#?}",
+                        expr.expression,
+                    ),
+                },
+                _ => panic!("program.statements[0] is not Statement::Expression. got: {stmt:#?}"),
+            }
+        }
+    }
 }
