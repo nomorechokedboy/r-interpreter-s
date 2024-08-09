@@ -5,6 +5,7 @@ use std::{
     io::Write,
 };
 
+#[derive(Clone, Debug)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }

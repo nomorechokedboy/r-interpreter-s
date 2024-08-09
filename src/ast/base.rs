@@ -1,11 +1,21 @@
-use super::statements::{
-    BlockStatement, Bool, Call, ExpressionStatement, Function, Identifier, If, InfixExpression,
-    IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
+use super::{
+    program::Program,
+    statements::{
+        BlockStatement, Bool, Call, ExpressionStatement, Function, Identifier, If, InfixExpression,
+        IntegerLiteral, LetStatement, PrefixExpression, ReturnStatement,
+    },
 };
 use std::fmt::{self, Display};
 
 pub trait Node: Display {
     fn token_literal(&self) -> String;
+}
+
+#[derive(Clone, Debug)]
+pub enum ASTNode {
+    Expression(Expression),
+    Program(Program),
+    Statement(Statement),
 }
 
 #[derive(Clone, Debug)]
