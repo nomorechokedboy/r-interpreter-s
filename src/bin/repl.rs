@@ -1,5 +1,5 @@
 use anyhow::Result;
-use r_interpreter_s::{lexer::Lexer, parser::Parser, token::Token};
+use r_interpreter_s::{ast::base::ASTNode, eval::eval, lexer::Lexer, parser::Parser, token::Token};
 use std::{
     env,
     io::{self, BufReader, Write},
@@ -59,6 +59,8 @@ fn start(mut input: impl io::BufRead, mut output: impl Write) -> Result<()> {
             continue;
         }
 
-        writeln!(output, "{}", program.to_string())?;
+        if let Some(obj) = eval(ASTNode::Program(program)) {
+            writeln!(output, "{}", obj.inspect())?
+        }
     }
 }
