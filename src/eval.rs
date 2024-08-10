@@ -40,6 +40,7 @@ fn eval_statements(stmts: Vec<Statement>) -> Option<Object> {
 fn eval_prefix_expr(token: Token, right: Object) -> Option<Object> {
     Some(match token {
         Token::Bang => eval_bang_expr(right),
+        Token::Minus => eval_minus_prefix_operator_expr(right),
         _ => Object::Null,
     })
 }
@@ -52,5 +53,12 @@ fn eval_bang_expr(right: Object) -> Object {
         },
         Object::Null => Object::Bool(true),
         _ => Object::Bool(false),
+    }
+}
+
+fn eval_minus_prefix_operator_expr(right: Object) -> Object {
+    match right {
+        Object::Int64(val) => Object::Int64(-val),
+        _ => Object::Null,
     }
 }

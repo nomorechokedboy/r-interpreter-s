@@ -4,7 +4,7 @@ mod test {
 
     #[test]
     fn test_eval_int_expr() {
-        let tests = vec![("5", 5), ("10", 10)];
+        let tests = vec![("5", 5), ("10", 10), ("-5", -5), ("-10", -10)];
         for (input, expected) in tests {
             let evaluated = test_eval(input);
             test_int_obj(evaluated.expect("should not nil"), expected);
