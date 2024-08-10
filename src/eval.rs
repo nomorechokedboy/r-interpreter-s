@@ -1,6 +1,7 @@
 use crate::{
     ast::base::{ASTNode, Expression, Statement},
     object::Object,
+    token::Token,
 };
 
 pub fn eval(node: ASTNode) -> Option<Object> {
@@ -8,7 +9,9 @@ pub fn eval(node: ASTNode) -> Option<Object> {
         ASTNode::Expression(expr) => match expr {
             // Expression::Identifier(_) => todo!(),
             Expression::IntegerLiteral(expr) => Some(Object::Int64(expr.val)),
-            Expression::PrefixExpression(_) => todo!(),
+            Expression::PrefixExpression(expr) => {
+                eval_prefix_expr(expr.token, eval(ASTNode::Expression(*expr.right))?)
+            }
             Expression::InfixExpression(_) => todo!(),
             Expression::Bool(expr) => Some(Object::Bool(expr.value())),
             Expression::IfExpression(_) => todo!(),
@@ -32,4 +35,22 @@ fn eval_statements(stmts: Vec<Statement>) -> Option<Object> {
     }
 
     None
+}
+
+fn eval_prefix_expr(token: Token, right: Object) -> Option<Object> {
+    Some(match token {
+        Token::Bang => eval_bang_expr(right),
+        _ => Object::Null,
+    })
+}
+
+fn eval_bang_expr(right: Object) -> Object {
+    match right {
+        Object::Bool(val) => match val {
+            true => Object::Bool(false),
+            false => Object::Bool(true),
+        },
+        Object::Null => Object::Bool(true),
+        _ => Object::Bool(false),
+    }
 }

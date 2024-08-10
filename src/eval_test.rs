@@ -20,6 +20,22 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_bang_operator() {
+        let tests = vec![
+            ("!true", false),
+            ("!false", true),
+            ("!5", false),
+            ("!!true", true),
+            ("!!false", false),
+            ("!!5", true),
+        ];
+        for (input, expected) in tests {
+            let evaluated = test_eval(input);
+            test_bool_obj(evaluated.expect("should not be None"), expected);
+        }
+    }
+
     fn test_eval(input: &str) -> Option<Object> {
         let l = Lexer::new(input.to_string());
         let mut p = Parser::new(l);
