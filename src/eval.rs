@@ -12,7 +12,11 @@ pub fn eval(node: ASTNode) -> Option<Object> {
             Expression::PrefixExpression(expr) => {
                 eval_prefix_expr(expr.token, eval(ASTNode::Expression(*expr.right))?)
             }
-            Expression::InfixExpression(_) => todo!(),
+            Expression::InfixExpression(expr) => Some(eval_infix_expr(
+                expr.token,
+                eval(ASTNode::Expression(*expr.left))?,
+                eval(ASTNode::Expression(*expr.right))?,
+            )),
             Expression::Bool(expr) => Some(Object::Bool(expr.value())),
             Expression::IfExpression(_) => todo!(),
             Expression::FunctionLiteral(_) => todo!(),
@@ -59,6 +63,23 @@ fn eval_bang_expr(right: Object) -> Object {
 fn eval_minus_prefix_operator_expr(right: Object) -> Object {
     match right {
         Object::Int64(val) => Object::Int64(-val),
+        _ => Object::Null,
+    }
+}
+
+fn eval_infix_expr(token: Token, left: Object, right: Object) -> Object {
+    match (left, right) {
+        (Object::Int64(left), Object::Int64(right)) => eval_int_infix_expr(token, left, right),
+        _ => Object::Null,
+    }
+}
+
+fn eval_int_infix_expr(token: Token, left: i64, right: i64) -> Object {
+    match token {
+        Token::Plus => Object::Int64(left + right),
+        Token::Minus => Object::Int64(left - right),
+        Token::Asterisk => Object::Int64(left * right),
+        Token::Slash => Object::Int64(left / right),
         _ => Object::Null,
     }
 }
