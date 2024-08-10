@@ -29,7 +29,23 @@ mod test {
 
     #[test]
     fn test_eval_bool_expr() {
-        let tests = vec![("true", true), ("false", false)];
+        let tests = vec![
+            ("true", true),
+            ("false", false),
+            ("1 < 2", true),
+            ("1 > 2", false),
+            ("1 < 1", false),
+            ("1 > 1", false),
+            ("1 == 1", true),
+            ("1 != 1", false),
+            ("1 == 2", false),
+            ("1 != 2", true),
+            ("(1 < 2) == true", true),
+            ("(1 < 2) == false", false),
+            ("(1 > 2) == true", false),
+            ("(1 > 2) == false", true),
+            ("(5 > 5 == true) != false", false),
+        ];
         for (input, expected) in tests {
             let evaluated = test_eval(input);
             test_bool_obj(evaluated.expect("should not be None"), expected);
@@ -49,6 +65,26 @@ mod test {
         for (input, expected) in tests {
             let evaluated = test_eval(input);
             test_bool_obj(evaluated.expect("should not be None"), expected);
+        }
+    }
+
+    #[test]
+    fn test_if_else_epxr() {
+        let tests = vec![
+            ("if (true) { 10 }", Some(10)),
+            ("if (false) { 10 }", None),
+            ("if (1) { 10 }", Some(10)),
+            ("if (1 < 2) { 10 }", Some(10)),
+            ("if (1 > 2) { 10 }", None),
+            ("if (1 < 2) { 10 } else { 20 }", Some(10)),
+            ("if (1 > 2) { 10 } else { 20 }", Some(20)),
+        ];
+        for (input, expected) in tests {
+            let evaluated = test_eval(input);
+            match expected {
+                Some(val) => test_int_obj(evaluated.expect("should not None"), val),
+                None => test_null_obj(evaluated.expect("should not None")),
+            };
         }
     }
 
@@ -89,6 +125,16 @@ mod test {
             }
             _ => {
                 eprintln!("object has wrong value. got={obj:#?}, want {expected}");
+                false
+            }
+        }
+    }
+
+    fn test_null_obj(obj: Object) -> bool {
+        match obj {
+            Object::Null => true,
+            _ => {
+                eprintln!("object is not NULL. got={obj:#?}");
                 false
             }
         }

@@ -1,5 +1,8 @@
 use crate::{
-    ast::base::{ASTNode, Expression, Statement},
+    ast::{
+        base::{ASTNode, Expression, Statement},
+        statements::If,
+    },
     object::Object,
     token::Token,
 };
@@ -18,16 +21,15 @@ pub fn eval(node: ASTNode) -> Option<Object> {
                 eval(ASTNode::Expression(*expr.right))?,
             )),
             Expression::Bool(expr) => Some(Object::Bool(expr.value())),
-            Expression::IfExpression(_) => todo!(),
+            Expression::IfExpression(expr) => eval_if_expr(expr),
             Expression::FunctionLiteral(_) => todo!(),
             Expression::CallExpression(_) => todo!(),
             _ => None,
         },
         ASTNode::Program(stmts) => eval_statements(stmts.statements),
         ASTNode::Statement(stmt) => match stmt {
-            crate::ast::base::Statement::Expression(expr) => {
-                eval(ASTNode::Expression(expr.expression))
-            }
+            Statement::Expression(stmt) => eval(ASTNode::Expression(stmt.expression)),
+            Statement::Block(stmt) => eval_statements(stmt.statements),
             _ => None,
         },
     }
@@ -68,8 +70,10 @@ fn eval_minus_prefix_operator_expr(right: Object) -> Object {
 }
 
 fn eval_infix_expr(token: Token, left: Object, right: Object) -> Object {
-    match (left, right) {
-        (Object::Int64(left), Object::Int64(right)) => eval_int_infix_expr(token, left, right),
+    match (&token, left, right) {
+        (_, Object::Int64(left), Object::Int64(right)) => eval_int_infix_expr(token, left, right),
+        (Token::Equal, Object::Bool(left), Object::Bool(right)) => Object::Bool(left == right),
+        (Token::NotEqual, Object::Bool(left), Object::Bool(right)) => Object::Bool(left != right),
         _ => Object::Null,
     }
 }
@@ -80,6 +84,29 @@ fn eval_int_infix_expr(token: Token, left: i64, right: i64) -> Object {
         Token::Minus => Object::Int64(left - right),
         Token::Asterisk => Object::Int64(left * right),
         Token::Slash => Object::Int64(left / right),
+        Token::LessThan => Object::Bool(left < right),
+        Token::GreaterThan => Object::Bool(left > right),
+        Token::Equal => Object::Bool(left == right),
+        Token::NotEqual => Object::Bool(left != right),
         _ => Object::Null,
+    }
+}
+
+fn eval_if_expr(i: If) -> Option<Object> {
+    let cond = eval(ASTNode::Expression(*i.condition))?;
+    if is_truthy(cond) {
+        return eval(ASTNode::Statement(Statement::Block(i.consequence)));
+    } else if let Some(else_block) = i.alternative {
+        return eval(ASTNode::Statement(Statement::Block(else_block)));
+    }
+
+    Some(Object::Null)
+}
+
+fn is_truthy(obj: Object) -> bool {
+    match obj {
+        Object::Bool(val) => val,
+        Object::Null => false,
+        _ => true,
     }
 }

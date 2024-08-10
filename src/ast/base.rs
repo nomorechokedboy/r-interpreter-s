@@ -50,7 +50,7 @@ pub enum Statement {
     Let(LetStatement),
     Return(ReturnStatement),
     Expression(ExpressionStatement),
-    // Block(BlockStatement),
+    Block(BlockStatement),
 }
 
 impl Node for Statement {
@@ -65,7 +65,7 @@ impl fmt::Display for Statement {
             Statement::Let(stmt) => write!(f, "{stmt}"),
             Statement::Return(stmt) => write!(f, "{stmt}"),
             Statement::Expression(stmt) => write!(f, "{stmt}"),
-            // Statement::Block(stmt) => write!(f, "{stmt}"),
+            Statement::Block(stmt) => write!(f, "{stmt}"),
         }
     }
 }
