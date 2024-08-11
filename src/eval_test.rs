@@ -88,6 +88,30 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_return_statements() {
+        let tests = vec![
+            ("return 10;", 10),
+            ("return 10; 9;", 10),
+            ("return 2 * 5; 9;", 10),
+            ("9; return 2 * 5; 9;", 10),
+            (
+                "if (10 > 1) {
+                    if (10 > 1) {
+                        return 10;
+                    }
+
+                    return 1;
+                }",
+                10,
+            ),
+        ];
+        for (input, expected) in tests {
+            let evaluated = test_eval(input);
+            test_int_obj(evaluated.expect("shound not None"), expected);
+        }
+    }
+
     fn test_eval(input: &str) -> Option<Object> {
         let l = Lexer::new(input.to_string());
         let mut p = Parser::new(l);

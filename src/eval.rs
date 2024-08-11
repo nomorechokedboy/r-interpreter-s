@@ -1,7 +1,8 @@
 use crate::{
     ast::{
         base::{ASTNode, Expression, Statement},
-        statements::If,
+        program::Program,
+        statements::{BlockStatement, If},
     },
     object::Object,
     token::Token,
@@ -26,21 +27,28 @@ pub fn eval(node: ASTNode) -> Option<Object> {
             Expression::CallExpression(_) => todo!(),
             _ => None,
         },
-        ASTNode::Program(stmts) => eval_statements(stmts.statements),
+        ASTNode::Program(stmts) => eval_program(stmts),
         ASTNode::Statement(stmt) => match stmt {
             Statement::Expression(stmt) => eval(ASTNode::Expression(stmt.expression)),
-            Statement::Block(stmt) => eval_statements(stmt.statements),
+            Statement::Block(stmt) => eval_block_statement(stmt),
+            Statement::Return(stmt) => Some(Object::Return(Box::new(eval(ASTNode::Expression(
+                stmt.val?,
+            ))?))),
             _ => None,
         },
     }
 }
 
 fn eval_statements(stmts: Vec<Statement>) -> Option<Object> {
+    let mut res: Option<Object> = None;
     for stmt in stmts {
-        return eval(ASTNode::Statement(stmt));
+        res = eval(ASTNode::Statement(stmt));
+        if let Some(Object::Return(val)) = res {
+            return Some(*val);
+        }
     }
 
-    None
+    res
 }
 
 fn eval_prefix_expr(token: Token, right: Object) -> Option<Object> {
@@ -109,4 +117,28 @@ fn is_truthy(obj: Object) -> bool {
         Object::Null => false,
         _ => true,
     }
+}
+
+fn eval_program(program: Program) -> Option<Object> {
+    let mut res: Option<Object> = None;
+    for stmt in program.statements {
+        res = eval(ASTNode::Statement(stmt));
+        if let Some(Object::Return(_)) = res {
+            return res;
+        }
+    }
+
+    res
+}
+
+fn eval_block_statement(block: BlockStatement) -> Option<Object> {
+    let mut res: Option<Object> = None;
+    for stmt in block.statements {
+        res = eval(ASTNode::Statement(stmt));
+        if let Some(Object::Return(_)) = res {
+            return res;
+        }
+    }
+
+    res
 }
